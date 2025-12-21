@@ -183,18 +183,40 @@
         }
     }
 
-    async function loadCloud() {
+async function loadCloud() {
+        console.log("開始讀取雲端...");
         try {
             const response = await fetch(GAS_URL);
+            console.log("雲端回應狀態:", response.status);
+            
+            if (!response.ok) {
+                alert("連線失敗，錯誤碼: " + response.status);
+                return false;
+            }
+
             const cloudData = await response.json();
+            console.log("取得資料成功:", cloudData);
+
             if (cloudData && typeof cloudData === 'object') {
+                // 如果雲端是空的 {}，則不覆蓋本地資料
+                if (Object.keys(cloudData).length === 0) {
+                    document.getElementById('sync-status').innerText = "☁️ 雲端尚無資料 (已初始化)";
+                    return true;
+                }
+                
                 Object.keys(cloudData).forEach(key => {
                     localStorage.setItem(key, JSON.stringify(cloudData[key]));
                 });
+                document.getElementById('sync-status').innerText = "☁️ 已從雲端同步";
                 return true;
             }
         } catch (e) {
-            console.log("無法連線雲端，使用本地資料");
+            console.error("詳細錯誤訊息:", e);
+            document.getElementById('sync-status').innerText = "❌ 讀取失敗: " + e.message;
+            // 如果看到 CORS 錯誤，通常是網址沒貼對
+            if(e.message.includes('fetch')) {
+                alert("無法連線至 GAS。請檢查 GAS_URL 是否正確，且包含 /exec");
+            }
         }
         return false;
     }
