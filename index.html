@@ -30,35 +30,26 @@
         /* 一般卡片樣式 */
         .card { background: white; padding: 22px; border-radius: 24px; box-shadow: var(--shadow); margin-bottom: 20px; position: relative; border: 1px solid rgba(0,0,0,0.02); }
         .app-header { text-align: center; margin: 10px 0 25px 0; }
-        .app-header h1 { margin: 0; font-size: 24px; color: var(--text); }
+        .app-header h1 { margin: 0; font-size: 22px; color: var(--text); }
         .subtitle { font-size: 11px; color: var(--gray); text-transform: uppercase; margin-top: 5px; font-weight: bold; }
         
         h2 { margin: 0 0 18px 0; font-size: 1.25rem; border-left: 6px solid var(--primary); padding-left: 12px; display: flex; justify-content: space-between; align-items: center; }
         
-        /* 列表與按鈕 */
         .btn-pill { background: var(--btn-bg); color: #4a90e2; border: none; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 0.8rem; font-weight: 600; }
         .btn-pill.del { color: var(--danger); background: #fff1f0; }
         .btn-add-only { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: bold; cursor: pointer; flex: 1; }
-        .btn-line-direct { background: var(--line); color: white; border: none; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: bold; cursor: pointer; flex: 1.2; display: flex; align-items: center; justify-content: center; gap: 5px; }
         
         /* 表單 */
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
         input, select, textarea { padding: 14px; border: 1.5px solid #f0f0f0; border-radius: 14px; font-size: 15px; width: 100%; box-sizing: border-box; outline: none; background: #fafafa; }
-        input:focus { border-color: var(--primary); background: white; }
         label { font-size: 12px; color: var(--gray); font-weight: bold; margin-bottom: 6px; display: block; padding-left: 5px; }
         
-        /* 其它 */
-        .footer-signature { text-align: center; padding: 40px 0; color: #bdc3c7; font-size: 12px; line-height: 1.6; }
-        .drag-handle { cursor: grab; padding: 10px 20px; color: #ccc; font-size: 24px; position: absolute; right: 0; top: 0; bottom: 0; display: flex; align-items: center; }
-        .project-actions { position: absolute; left: 15px; bottom: 12px; display: flex; gap: 8px; }
-        .tag { font-size: 10px; background: #f1f3f5; padding: 3px 8px; border-radius: 7px; color: #666; margin-right: 5px; display: inline-block; margin-top: 5px; }
-        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; padding: 15px; backdrop-filter: blur(5px); }
-        .modal-content { background: white; max-width: 420px; margin: 30px auto; padding: 30px; border-radius: 28px; text-align: center; }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 3000; padding: 15px; backdrop-filter: blur(5px); }
+        .modal-content { background: white; max-width: 420px; margin: 80px auto; padding: 30px; border-radius: 28px; text-align: center; position: relative; }
         
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
         td, th { padding: 15px 5px; border-bottom: 1px solid #f8f9fa; text-align: left; }
-        
-        @media (max-width: 500px) { .form-grid { grid-template-columns: 1fr; } }
+        .tag { font-size: 10px; background: #f1f3f5; padding: 3px 8px; border-radius: 7px; color: #666; margin-right: 5px; display: inline-block; }
     </style>
 </head>
 <body>
@@ -68,17 +59,17 @@
         <div style="font-size: 60px; margin-bottom: 20px;">✈️</div>
         <h1>旅遊記帳系統</h1>
         <p>專業、同步、多人共享</p>
-        <button class="btn-welcome btn-primary" onclick="initNewGroup()">＋ 建立新旅程群組</button>
+        <button class="btn-welcome btn-primary" onclick="initNewGroupFlow()">＋ 建立新旅程群組</button>
         <button class="btn-welcome btn-outline" onclick="openJoinModal()">📥 加入現有群組</button>
-        <div style="margin-top: 25px; font-size: 12px; color: #bdc3c7;">v2.0 雲端同步版本</div>
+        <div style="margin-top: 25px; font-size: 12px; color: #bdc3c7;">v2.1 穩定版本</div>
     </div>
 </div>
 
 <div class="container">
     <div id="project-screen" style="display:none;">
         <div class="app-header">
-            <h1 id="display-group-code">...</h1>
-            <div id="sync-status" class="subtitle">讀取雲端中...</div>
+            <h1 id="display-group-code">群組代碼: ----</h1>
+            <div id="sync-status" class="subtitle">讀取中...</div>
         </div>
         
         <div class="card" style="text-align:center; background:linear-gradient(135deg, #f0f7ff 0%, #e6f1ff 100%); border:none;">
@@ -89,11 +80,11 @@
 
         <div class="card">
             <h2>🗂️ 我的旅程 <button class="btn-pill" onclick="openNewProjectModal()">+ 建立</button></h2>
-            <div id="project-list" style="min-height: 50px;"></div>
+            <div id="project-list"></div>
         </div>
 
-        <div style="text-align: center;">
-            <button class="btn-pill del" style="padding: 10px 20px;" onclick="exitGroup()">🚪 退出群組</button>
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn-pill del" style="padding: 10px 20px;" onclick="exitGroup()">🚪 退出並更換群組</button>
         </div>
     </div>
 
@@ -116,18 +107,18 @@
             </div>
             <div style="display:flex; gap:10px;">
                 <button class="btn-add-only" onclick="addRecord(false)">僅新增</button>
-                <button class="btn-line-direct" onclick="addRecord(true)">🟢 新增並分享</button>
+                <button class="btn-add-only" onclick="addRecord(true)" style="background:var(--line);">🟢 新增並分享</button>
             </div>
         </div>
 
         <div class="card" style="text-align:center;">
             <div id="totalDisplay" style="font-size:38px; font-weight:800; color:var(--danger); margin-bottom: 5px;">NT$ 0</div>
-            <button class="btn-pill" onclick="prepareShareModal()" style="background:var(--primary); color:white; margin:10px 0; padding:12px 24px; font-size: 14px; border-radius: 14px;">🔗 查看/分享帳單</button>
+            <button class="btn-pill" onclick="prepareShareModal()" style="background:var(--primary); color:white; padding:12px 24px; font-size: 14px; border-radius: 14px;">🔗 查看/分享帳單</button>
             <div style="max-width:200px; margin:20px auto;"><canvas id="expenseChart"></canvas></div>
         </div>
 
         <div class="card">
-            <h2>📜 明細 <button class="btn-pill" onclick="openModal('importModal')" style="background:var(--line); color:white;">📥 智慧匯入</button></h2>
+            <h2>📜 明細</h2>
             <div style="overflow-x:auto;">
                 <table>
                     <thead><tr><th>日期</th><th>品項</th><th>金額(NT)</th><th style="text-align:right;">操作</th></tr></thead>
@@ -136,20 +127,15 @@
             </div>
         </div>
     </div>
-
-    <div class="footer-signature">
-        © 2025 旅遊記帳系統<br>
-        All Rights Reserved. Designed by Alex Hong
-    </div>
 </div>
 
 <div id="joinModal" class="modal">
     <div class="modal-content">
         <h3>📥 加入群組</h3>
         <p>請輸入 4 位數群組代碼</p>
-        <input type="text" id="joinCodeInput" maxlength="4" placeholder="例如: A8K2" style="text-align: center; font-size: 24px; letter-spacing: 5px; text-transform: uppercase;">
+        <input type="text" id="joinCodeInput" maxlength="4" placeholder="A8K2" style="text-align: center; font-size: 24px; letter-spacing: 5px; text-transform: uppercase;">
         <div style="display:flex; gap:10px; margin-top:20px;">
-            <button class="btn-add-only" onclick="joinGroup()">確認加入</button>
+            <button class="btn-add-only" onclick="confirmJoinGroup()">確認加入</button>
             <button class="btn-add-only" onclick="closeModal('joinModal')" style="background:#eee; color:#666;">取消</button>
         </div>
     </div>
@@ -157,10 +143,10 @@
 
 <div id="projectModal" class="modal">
     <div class="modal-content">
-        <h3 id="pModalTitle">旅程設定</h3>
+        <h3 id="pModalTitle">建立新旅程</h3>
         <input type="hidden" id="editProjId">
         <div style="text-align:left;">
-            <label>旅程名稱</label><input type="text" id="pName" placeholder="例如：東京五天四夜">
+            <label>旅程名稱</label><input type="text" id="pName" placeholder="例如：東京秋季團">
             <div class="form-grid" style="margin-top:10px;">
                 <div><label>出發</label><input type="date" id="pStart"></div>
                 <div><label>回程</label><input type="date" id="pEnd"></div>
@@ -173,199 +159,247 @@
     </div>
 </div>
 
-<div id="importModal" class="modal"><div class="modal-content"><h3>📥 智慧匯入</h3><textarea id="importInput" style="height:150px;" placeholder="貼上 LINE 帳單內容..."></textarea><button class="btn-add-only" style="margin-top:10px; width:100%;" onclick="parseImportText()">解析匯入</button><button class="btn-pill" style="margin-top:10px;" onclick="closeModal('importModal')">關閉</button></div></div>
-<div id="shareSelectModal" class="modal"><div class="modal-content"><h3>📤 分享</h3><a id="lineShareLink" href="#" target="_blank" class="btn-line-direct" style="text-decoration:none;">🟢 分享至 LINE</a><button class="btn-add-only" style="margin-top:10px; width:100%; background:#6c757d;" onclick="copyToClipboard()">📋 複製文字</button><button class="btn-pill" style="margin-top:10px;" onclick="closeModal('shareSelectModal')">取消</button></div></div>
-
 <script>
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwDiQBb8828NuND2vun5zdubnnEoLKxXxn11M4tnIeMFunITW5BWmn-ucd23AihcI_zFw/exec";
     let projects=[], currentProjectId=null, records=[], payers=[], payMethods=[], currencies=[], myChart=null;
-    let myGroupCode = localStorage.getItem('user_group_code') || "";
+    let tempGroupCode = "";
 
-    // --- 初始化流程 ---
-    window.onload = async function() {
+    window.onload = function() {
         Chart.register(ChartDataLabels);
-        if (myGroupCode) {
-            showProjectScreen();
+        const savedCode = localStorage.getItem('user_group_code');
+        if (savedCode) {
+            enterGroup(savedCode);
         } else {
             document.getElementById('welcome-screen').style.display = 'flex';
         }
     };
 
-    // 生成 4 位亂碼
     function generateRandomCode() {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 排除易混淆字元
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         let result = '';
         for (let i = 0; i < 4; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
         return result;
     }
 
-    // 建立新群組
-    function initNewGroup() {
-        myGroupCode = generateRandomCode();
-        openNewProjectModal(); // 先填寫旅程資訊
+    // 建立新群組流程
+    function initNewGroupFlow() {
+        tempGroupCode = generateRandomCode();
+        document.getElementById('pModalTitle').innerText = "建立新群組 (" + tempGroupCode + ")";
+        openModal('projectModal');
     }
 
-    // 加入現有群組
+    // 加入現有群組流程
     function openJoinModal() { openModal('joinModal'); }
-    async function joinGroup() {
+    function confirmJoinGroup() {
         const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
-        if (code.length !== 4) { alert("請輸入正確的 4 位代碼"); return; }
-        myGroupCode = code;
-        localStorage.setItem('user_group_code', myGroupCode);
+        if (code.length !== 4) { alert("請輸入 4 位代碼"); return; }
         closeModal('joinModal');
-        await showProjectScreen();
+        enterGroup(code);
     }
 
-    // 退出群組
-    function exitGroup() {
-        if(confirm("確定要退出目前群組嗎？(本地快取將清除)")) {
-            localStorage.removeItem('user_group_code');
-            localStorage.removeItem('trip_projects');
-            location.reload();
-        }
-    }
-
-    // 顯示旅程清單畫面
-    async function showProjectScreen() {
+    // 進入群組核心邏輯
+    async function enterGroup(code) {
+        localStorage.setItem('user_group_code', code);
         document.getElementById('welcome-screen').style.display = 'none';
         document.getElementById('project-screen').style.display = 'block';
-        document.getElementById('display-group-code').innerText = `群組代碼: ${myGroupCode}`;
+        document.getElementById('display-group-code').innerText = `群組代碼: ${code}`;
         
-        await loadCloud(); // 同步雲端
+        await loadCloud(); // 從雲端抓取該 code 的資料
         projects = JSON.parse(localStorage.getItem('trip_projects')) || [];
         loadProjectList();
         initYearSelector();
     }
 
-    // 處理旅程建立
-    async function handleProjectSubmit() {
-        const id = document.getElementById('editProjId').value, 
-              n = document.getElementById('pName').value, 
-              s = document.getElementById('pStart').value, 
-              e = document.getElementById('pEnd').value;
-        if(!n || !s || !e) { alert("請填寫完整資訊"); return; }
-        
-        if(id) { 
-            const p = projects.find(x => x.id == id); Object.assign(p, { name:n, start:s, end:e }); 
-        } else { 
-            projects.push({ id:Date.now(), name:n, start:s, end:e }); 
+    function exitGroup() {
+        if(confirm("確定退出？這會回到首頁並切換群組")) {
+            localStorage.clear();
+            location.reload();
         }
-        
-        // 確保儲存群組代碼並切換畫面
-        localStorage.setItem('user_group_code', myGroupCode);
-        localStorage.setItem('trip_projects', JSON.stringify(projects)); 
-        
+    }
+
+    async function handleProjectSubmit() {
+        const id = document.getElementById('editProjId').value;
+        const n = document.getElementById('pName').value;
+        const s = document.getElementById('pStart').value;
+        const e = document.getElementById('pEnd').value;
+        if(!n || !s || !e) return;
+
+        if(!id) { // 新增旅程且同時是新群組
+            if(!localStorage.getItem('user_group_code')) {
+                localStorage.setItem('user_group_code', tempGroupCode);
+            }
+            projects.push({ id:Date.now(), name:n, start:s, end:e });
+        } else {
+            const p = projects.find(x => x.id == id);
+            Object.assign(p, { name:n, start:s, end:e });
+        }
+
+        localStorage.setItem('trip_projects', JSON.stringify(projects));
         closeModal('projectModal');
-        await showProjectScreen();
+        enterGroup(localStorage.getItem('user_group_code'));
         syncCloud();
     }
 
-    // --- 雲端核心功能 (與原本逻辑一致，但加入 groupCode 參數) ---
+    // --- 雲端同步邏輯 ---
     async function syncCloud() {
-        if(!myGroupCode) return;
+        const code = localStorage.getItem('user_group_code');
         const allData = {};
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key !== 'user_group_code' && (key.startsWith('trip_') || key.startsWith('records_') || key.startsWith('payers_') || key.startsWith('methods_') || key.startsWith('currencies_'))) {
+            if (key !== 'user_group_code' && key.includes('_')) {
                 allData[key] = JSON.parse(localStorage.getItem(key));
             }
         }
         try {
-            document.getElementById('sync-status').innerText = "雲端同步中...";
-            await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ groupCode: myGroupCode, data: allData }) });
-            document.getElementById('sync-status').innerText = "雲端同步完成";
-        } catch (e) { document.getElementById('sync-status').innerText = "同步失敗"; }
+            document.getElementById('sync-status').innerText = "同步中...";
+            await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ groupCode: code, data: allData }) });
+            document.getElementById('sync-status').innerText = "☁️ 已同步";
+        } catch (e) { document.getElementById('sync-status').innerText = "離線中"; }
     }
 
     async function loadCloud() {
-        if(!myGroupCode) return;
+        const code = localStorage.getItem('user_group_code');
         try {
-            const response = await fetch(`${GAS_URL}?group=${myGroupCode}`);
+            const response = await fetch(`${GAS_URL}?group=${code}`);
             const cloudData = await response.json();
-            if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
+            if (cloudData && Object.keys(cloudData).length > 0) {
                 Object.keys(cloudData).forEach(key => localStorage.setItem(key, JSON.stringify(cloudData[key])));
-                document.getElementById('sync-status').innerText = "☁️ 雲端同步完成";
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Cloud load error"); }
     }
 
-    // --- 以下為原本的功能邏輯 (保持不變) ---
+    // --- 基礎 UI 功能 ---
+    function openModal(id) { document.getElementById(id).style.display='block'; }
+    function closeModal(id) { document.getElementById(id).style.display='none'; }
+    function openNewProjectModal() { 
+        document.getElementById('editProjId').value = "";
+        document.getElementById('pName').value = "";
+        openModal('projectModal'); 
+    }
+
     function loadProjectList() {
-        const list = document.getElementById('project-list'); 
-        list.innerHTML = projects.length ? '' : '<p style="text-align:center;color:#999;margin-top:20px;">點擊上方按鈕建立第一趟旅程</p>';
+        const list = document.getElementById('project-list');
+        list.innerHTML = projects.length ? '' : '<p style="text-align:center;color:#999;">尚未建立旅程</p>';
         projects.forEach(p => {
             const s = JSON.parse(localStorage.getItem(`records_${p.id}`)) || [];
             const t = s.reduce((sum, r) => sum + Math.round(r.amount * (r.rate||1)), 0);
             const card = document.createElement('div');
-            card.className = 'card'; card.setAttribute('data-id', p.id);
-            card.style.cssText = "padding:20px 15px 55px 15px; margin-bottom:12px; border-left: 6px solid var(--primary);";
-            card.innerHTML = `<div onclick="selectProject(${p.id})" style="cursor:pointer;"><b>${p.name}</b><br><span style="font-size:12px;color:#999;">${p.start} ~ ${p.end}</span><div style="color:var(--danger);font-weight:bold; font-size:22px; margin-top:8px;">NT$ ${t.toLocaleString()}</div></div><div class="project-actions"><button class="btn-pill" onclick="event.stopPropagation(); openEditProject(${p.id})">⚙️</button></div><div class="drag-handle">☰</div>`;
+            card.className = 'card';
+            card.style.padding = "20px 15px 50px 15px";
+            card.innerHTML = `<div onclick="selectProject(${p.id})"><b>${p.name}</b><br><small>${p.start}~${p.end}</small><div style="color:var(--danger);font-weight:bold;font-size:20px;margin-top:5px;">NT$ ${t.toLocaleString()}</div></div>`;
             list.appendChild(card);
         });
-        setTimeout(initSortable, 100);
     }
 
     function selectProject(id) {
-        currentProjectId = id; const proj = projects.find(p => p.id === id); if(!proj) return;
+        currentProjectId = id;
+        const proj = projects.find(p => p.id === id);
         document.getElementById('current-project-name').innerText = proj.name;
         records = JSON.parse(localStorage.getItem(`records_${id}`)) || [];
         payers = JSON.parse(localStorage.getItem(`payers_${id}`)) || ["本人"];
         payMethods = JSON.parse(localStorage.getItem(`methods_${id}`)) || ["💵 現金", "💳 刷卡"];
         currencies = JSON.parse(localStorage.getItem(`currencies_${id}`)) || [{code:'TWD', rate:1}, {code:'JPY', rate:0.21}];
-        document.getElementById('project-screen').style.display='none'; document.getElementById('main-screen').style.display='block';
+        document.getElementById('project-screen').style.display='none';
+        document.getElementById('main-screen').style.display='block';
         syncUI(); render(); setDefaultDate();
     }
 
-    function backToProjectList() { document.getElementById('main-screen').style.display='none'; showProjectScreen(); }
-    function openModal(id) { document.getElementById(id).style.display='block'; }
-    function closeModal(id) { document.getElementById(id).style.display='none'; }
-    function openNewProjectModal() { document.getElementById('pModalTitle').innerText="新旅程群組 ("+myGroupCode+")"; document.getElementById('editProjId').value=""; openModal('projectModal'); }
-    function openEditProject(id) { const p = projects.find(x => x.id === id); document.getElementById('pModalTitle').innerText="旅程設定"; document.getElementById('editProjId').value=p.id; document.getElementById('pName').value=p.name; document.getElementById('pStart').value=p.start; document.getElementById('pEnd').value=p.end; openModal('projectModal'); }
-    function setDefaultDate() { document.getElementById('date').value = new Date().toISOString().split('T')[0]; }
+    function backToProjectList() {
+        document.getElementById('main-screen').style.display='none';
+        document.getElementById('project-screen').style.display='block';
+        loadProjectList();
+    }
 
-    // (剩餘 addRecord, render, updateChart 等記帳邏輯均與原本相同，故保留原樣)
-    function addRecord(shouldShare) {
-        const amtInput = document.getElementById('amount'), itemInput = document.getElementById('itemName'), amt = parseFloat(amtInput.value);
-        if(!amt) return;
-        records.push({ id:Date.now(), date:document.getElementById('date').value, item:itemInput.value||"未命名", category:document.getElementById('category').value, amount:amt, currency:document.getElementById('currency').value, rate:parseFloat(document.getElementById('rate').value)||1, payer:document.getElementById('payerSelect').value, method:document.getElementById('payMethod').value });
-        saveAndRefresh(); amtInput.value = ''; itemInput.value = '';
-        if(shouldShare) { const txt = generateFullText(); window.location.href = `https://line.me/R/msg/text/?${encodeURIComponent(txt)}`; }
-    }
-    function saveAndRefresh() { localStorage.setItem(`records_${currentProjectId}`, JSON.stringify(records)); render(); syncCloud(); }
-    function render() {
-        const tbody = document.getElementById('recordTableBody'); tbody.innerHTML = ''; 
-        let total = 0, stats = {};
-        records.sort((a,b)=>a.date.localeCompare(b.date)).forEach(r => {
-            const twd = Math.round(r.amount * r.rate); total += twd; stats[r.category] = (stats[r.category] || 0) + twd;
-            tbody.innerHTML += `<tr><td>${r.date.substring(5)}</td><td><b>${r.item}</b><br><span class="tag">${r.payer}</span><span class="tag">${r.category}</span></td><td style="color:var(--danger);font-weight:bold;">$${twd.toLocaleString()}</td><td style="text-align:right;"><button class="btn-pill del" onclick="deleteRecord(${r.id})">🗑️</button></td></tr>`;
-        });
-        document.getElementById('totalDisplay').innerText = `NT$ ${total.toLocaleString()}`; updateChart(stats);
-    }
     function syncUI() {
         document.getElementById('payerSelect').innerHTML = payers.map(p => `<option value="${p}">${p}</option>`).join('');
         document.getElementById('payMethod').innerHTML = payMethods.map(m => `<option value="${m}">${m}</option>`).join('');
         document.getElementById('currency').innerHTML = currencies.map(c => `<option value="${c.code}">${c.code}</option>`).join('');
         applyCurrencyRate('rate', 'currency');
     }
-    function applyCurrencyRate(rId, cId) { const c=document.getElementById(cId).value, t=currencies.find(x=>x.code===c); if(t) document.getElementById(rId).value=t.rate; }
-    function updateChart(dataMap) {
-        const ctx = document.getElementById('expenseChart').getContext('2d'); if(myChart) myChart.destroy();
-        if(!Object.keys(dataMap).length) return;
-        myChart = new Chart(ctx, { type:'doughnut', data:{ labels:Object.keys(dataMap), datasets:[{data:Object.values(dataMap), backgroundColor:['#3498db','#e74c3c','#2ecc71','#f1c40f','#9b59b6','#e67e22']}]}, options:{ plugins:{ legend:{display:false}, datalabels:{ color:'#fff', font:{weight:'bold', size:10}, formatter:(val, ctx)=>{ const total=ctx.dataset.data.reduce((a,b)=>a+b,0); return Math.round(val/total*100)+'%'; }}}});
+
+    function applyCurrencyRate(rId, cId) { 
+        const c=document.getElementById(cId).value;
+        const t=currencies.find(x=>x.code===c);
+        if(t) document.getElementById(rId).value=t.rate;
     }
+
+    function setDefaultDate() { document.getElementById('date').value = new Date().toISOString().split('T')[0]; }
+
+    function addRecord(shouldShare) {
+        const amt = parseFloat(document.getElementById('amount').value);
+        if(!amt) return;
+        records.push({
+            id: Date.now(),
+            date: document.getElementById('date').value,
+            item: document.getElementById('itemName').value || "未命名",
+            category: document.getElementById('category').value,
+            amount: amt,
+            currency: document.getElementById('currency').value,
+            rate: parseFloat(document.getElementById('rate').value) || 1,
+            payer: document.getElementById('payerSelect').value,
+            method: document.getElementById('payMethod').value
+        });
+        localStorage.setItem(`records_${currentProjectId}`, JSON.stringify(records));
+        render(); syncCloud();
+        document.getElementById('amount').value = "";
+        document.getElementById('itemName').value = "";
+        if(shouldShare) { /* Line share logic here */ }
+    }
+
+    function render() {
+        const tbody = document.getElementById('recordTableBody');
+        tbody.innerHTML = '';
+        let total = 0, stats = {};
+        records.forEach(r => {
+            const twd = Math.round(r.amount * r.rate);
+            total += twd; stats[r.category] = (stats[r.category] || 0) + twd;
+            tbody.innerHTML += `<tr><td>${r.date.substring(5)}</td><td><b>${r.item}</b><br><span class="tag">${r.payer}</span></td><td>$${twd.toLocaleString()}</td><td style="text-align:right;"><button class="btn-pill del" onclick="deleteRecord(${r.id})">🗑️</button></td></tr>`;
+        });
+        document.getElementById('totalDisplay').innerText = `NT$ ${total.toLocaleString()}`;
+        updateChart(stats);
+    }
+
+    function deleteRecord(id) {
+        if(!confirm("刪除此筆？")) return;
+        records = records.filter(x => x.id !== id);
+        localStorage.setItem(`records_${currentProjectId}`, JSON.stringify(records));
+        render(); syncCloud();
+    }
+
+    function updateChart(dataMap) {
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+        if(myChart) myChart.destroy();
+        if(!Object.keys(dataMap).length) return;
+        myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(dataMap),
+                datasets: [{ data: Object.values(dataMap), backgroundColor: ['#3498db','#e74c3c','#2ecc71','#f1c40f','#9b59b6'] }]
+            },
+            options: { plugins: { legend: { display: false }, datalabels: { color: '#fff', font: { weight: 'bold' } } } }
+        });
+    }
+
     function initYearSelector() {
-        const sel = document.getElementById('yearSelect'); const yrs = new Set([new Date().getFullYear()]);
-        projects.forEach(p => yrs.add(new Date(p.start).getFullYear()));
-        sel.innerHTML = Array.from(yrs).sort((a,b)=>b-a).map(y => `<option value="${y}">${y} 年</option>`).join('');
+        const sel = document.getElementById('yearSelect');
+        const yrs = [new Date().getFullYear()];
+        projects.forEach(p => yrs.push(new Date(p.start).getFullYear()));
+        const uniqueYrs = [...new Set(yrs)].sort((a,b)=>b-a);
+        sel.innerHTML = uniqueYrs.map(y => `<option value="${y}">${y} 年</option>`).join('');
         updateYearlyTotal();
     }
+
     function updateYearlyTotal() {
-        const y = parseInt(document.getElementById('yearSelect').value); let t = 0;
-        projects.forEach(p => { if(new Date(p.start).getFullYear() === y) { const s = JSON.parse(localStorage.getItem(`records_${p.id}`)) || []; t += s.reduce((sum, r) => sum + Math.round(r.amount * (r.rate||1)), 0); } });
+        const y = parseInt(document.getElementById('yearSelect').value);
+        let t = 0;
+        projects.forEach(p => {
+            if(new Date(p.start).getFullYear() === y) {
+                const s = JSON.parse(localStorage.getItem(`records_${p.id}`)) || [];
+                t += s.reduce((sum, r) => sum + Math.round(r.amount * (r.rate||1)), 0);
+            }
+        });
         document.getElementById('yearlyTotalDisplay').innerText = `NT$ ${t.toLocaleString()}`;
     }
-    function deleteRecord(id) { if(confirm('刪除？')) { records = records.filter(r => r.id !== id); saveAndRefresh(); } }
-    function initSortable() { const listEl = document.getElementById('project-list'); Sortable.create(listEl, { handle:'.drag-handle', animation:250 }); }
 </script>
 </body>
 </html>
