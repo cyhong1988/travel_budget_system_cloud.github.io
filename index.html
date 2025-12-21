@@ -332,39 +332,37 @@
 
     // --- 雲端核心功能 ---
 
-    async function syncCloud() {
+async function syncCloud() {
+    // 取得當前的群組代碼 (如果您的系統有代碼功能的話)
+    const code = localStorage.getItem('user_group_code') || "default"; 
+    const allData = {};
 
-        const allData = {};
-
-        for (let i = 0; i < localStorage.length; i++) {
-
-            const key = localStorage.key(i);
-
-            if (key.startsWith('trip_') || key.startsWith('records_') || key.startsWith('payers_') || key.startsWith('methods_') || key.startsWith('currencies_')) {
-
-                allData[key] = JSON.parse(localStorage.getItem(key));
-
-            }
-
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        // 確保包含 records, payers, methods, currencies 以及旅程清單
+        if (key.startsWith('trip_') || key.startsWith('records_') || 
+            key.startsWith('payers_') || key.startsWith('methods_') || 
+            key.startsWith('currencies_')) {
+            allData[key] = JSON.parse(localStorage.getItem(key));
         }
-
-        try {
-
-            document.getElementById('sync-status').innerText = "雲端同步中...";
-
-            await fetch(GAS_URL, { method: "POST", body: JSON.stringify(allData) });
-
-            document.getElementById('sync-status').innerText = "同步成功";
-
-        } catch (e) {
-
-            document.getElementById('sync-status').innerText = "雲端同步失敗";
-
-            console.error(e);
-
-        }
-
     }
+
+    try {
+        const statusEl = document.getElementById('sync-status');
+        if (statusEl) statusEl.innerText = "☁️ 雲端同步中...";
+        
+        const response = await fetch(GAS_URL, { 
+            method: "POST", 
+            body: JSON.stringify({ groupCode: code, data: allData }) 
+        });
+
+        if (statusEl) statusEl.innerText = "✅ 同步成功";
+    } catch (e) {
+        if (document.getElementById('sync-status')) 
+            document.getElementById('sync-status').innerText = "❌ 同步失敗";
+        console.error("Sync Error:", e);
+    }
+}
 
 
 
@@ -524,91 +522,80 @@ async function loadCloud() {
 
     // --- 以下為原本的功能函式 ---
 
-   function parseImportText() {
-        const text = document.getElementById('importInput').value;
-        if (!text) return;
-
-        // 取得當前旅程的出發年份作為基準
-        const proj = projects.find(p => p.id === currentProjectId);
-        let currentYear = proj && proj.start ? new Date(proj.start).getFullYear() : new Date().getFullYear();
-        
-        let lastDate = "";
-        let importCount = 0;
-        let lastMonth = -1;
-
-        const lines = text.split('\n').map(l => l.trim()).filter(l => l !== "");
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            
-            // 解析日期 MM/DD
-            const dateMatch = line.match(/^(\d{1,2})\/(\d{1,2})$/);
-            if (dateMatch) {
-                const month = parseInt(dateMatch[1]);
-                const day = dateMatch[2].padStart(2, '0');
-                
-                // 智慧跨年邏輯：如果當前月份小於上一個紀錄的月份（例如從 12 變成 01），年份自動 +1
-                if (lastMonth !== -1 && month < lastMonth) {
-                    currentYear++;
-                }
-                lastMonth = month;
-                lastDate = `${currentYear}-${month.toString().padStart(2, '0')}-${day}`;
-                continue;
-            }
-
-            // 解析品項 [分類]
-            const itemMatch = line.match(/^(.+?)\s*\[(.+?)\]$/);
-            if (itemMatch && lines[i+1] && lines[i+2]) {
-                const itemName = itemMatch[1].trim();
-                const category = itemMatch[2].trim();
-                
-                // 解析金額與幣別
-                const amountLine = lines[++i];
-                const amountMatch = amountLine.match(/^([\d,]+)\s+([A-Z]{3})/);
-                
-                // 解析支付者 (方式)
-                const personLine = lines[++i];
-                const personMatch = personLine.match(/^(.+?)\s*\((.+?)\)$/);
-                
-                if (amountMatch && personMatch && lastDate) {
-                    const rawAmt = parseFloat(amountMatch[1].replace(/,/g, ''));
-                    const currCode = amountMatch[2];
-                    const person = personMatch[1].trim();
-                    const method = personMatch[2].trim().replace('💳 ', '').replace('💵 ', ''); // 清除可能重複的圖示
-                    
-                    let rate = 1;
-                    const foundCurr = currencies.find(c => c.code === currCode);
-                    if (foundCurr) rate = foundCurr.rate;
-                    
-                    records.push({ 
-                        id: Date.now() + Math.random(), 
-                        date: lastDate, 
-                        item: itemName, 
-                        category: category, 
-                        amount: rawAmt, 
-                        currency: currCode, 
-                        rate: rate, 
-                        payer: person, 
-                        method: method 
-                    });
-
-                    if (!payers.includes(person)) payers.push(person);
-                    if (!payMethods.includes(method)) payMethods.push(method);
-                    importCount++;
-                }
-            }
+async function parseImportText() {
+    const text = document.getElementById('importInput').value;
+    if (!text) return;
+    const currentYear = new Date().getFullYear();
+    let lastDate = new Date().toISOString().split('T')[0];
+    let importCount = 0;
+    
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l !== "");
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const dateMatch = line.match(/^(\d{1,2})\/(\d{1,2})$/);
+        if (dateMatch) {
+            lastDate = `${currentYear}-${dateMatch[1].padStart(2, '0')}-${dateMatch[2].padStart(2, '0')}`;
+            continue;
         }
+        
+        const itemMatch = line.match(/^(.+?)\s*\[(.+?)\]$/);
+        if (itemMatch && lines[i+1] && lines[i+2]) {
+            const itemName = itemMatch[1].trim();
+            const category = itemMatch[2].trim();
+            const amountLine = lines[++i];
+            const amountMatch = amountLine.match(/^([\d,]+)\s+([A-Z]{3})/);
+            const personLine = lines[++i];
+            const personMatch = personLine.match(/^(.+?)\s*\((.+?)\)$/);
 
-        if (importCount > 0) {
-            alert(`成功匯入 ${importCount} 筆紀錄！`);
-            saveSettingsAndSync(); 
-            saveAndRefresh(); 
-            closeModal('importModal'); 
-            document.getElementById('importInput').value = '';
-        } else { 
-            alert("解析失敗，請確認格式。"); 
+            if (amountMatch && personMatch) {
+                const rawAmt = parseFloat(amountMatch[1].replace(/,/g, ''));
+                const currCode = amountMatch[2];
+                const person = personMatch[1].trim();
+                const method = personMatch[2].trim();
+                let rate = 1;
+
+                const foundCurr = currencies.find(c => c.code === currCode);
+                if (foundCurr) rate = foundCurr.rate;
+
+                records.push({ 
+                    id: Date.now() + Math.random(), 
+                    date: lastDate, 
+                    item: itemName, 
+                    category: category, 
+                    amount: rawAmt, 
+                    currency: currCode, 
+                    rate: rate, 
+                    payer: person, 
+                    method: method 
+                });
+
+                if (!payers.includes(person)) payers.push(person);
+                if (!payMethods.includes(method)) payMethods.push(method);
+                importCount++;
+            }
         }
     }
 
+    if (importCount > 0) {
+        // 核心修正：先儲存到本地，再統一呼叫一次同步
+        localStorage.setItem(`records_${currentProjectId}`, JSON.stringify(records));
+        localStorage.setItem(`payers_${currentProjectId}`, JSON.stringify(payers));
+        localStorage.setItem(`methods_${currentProjectId}`, JSON.stringify(payMethods));
+        
+        render(); // 更新介面
+        syncUI(); // 更新下拉選單
+        
+        // 確保強制發送到雲端
+        await syncCloud(); 
+        
+        alert(`成功匯入 ${importCount} 筆紀錄並同步至雲端！`);
+        closeModal('importModal');
+        document.getElementById('importInput').value = '';
+    } else {
+        alert("解析失敗，請確認格式是否正確。");
+    }
+}
 
 
     function initSortable() {
