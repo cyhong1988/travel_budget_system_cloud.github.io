@@ -15,11 +15,12 @@
         .app-header { text-align: center; margin: 10px 0 20px 0; }
         .app-header h1 { margin: 0; font-size: 24px; color: var(--text); letter-spacing: 2px; }
         
-        /* --- 新增：雲端同步遮罩樣式 --- */
+        /* 雲端同步遮罩樣式 */
         #sync-overlay {
             position: fixed; inset: 0; background: rgba(255,255,255,0.95);
             z-index: 9999; display: flex; flex-direction: column;
             align-items: center; justify-content: center; backdrop-filter: blur(5px);
+            display: none; /* 預設隱藏 */
         }
         .loader {
             border: 4px solid #f3f3f3; border-top: 4px solid var(--primary);
@@ -28,7 +29,6 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         #sync-status-text { font-weight: bold; color: var(--text); }
-        /* --------------------------- */
 
         .footer-signature { text-align: center; padding: 30px 0 20px 0; color: #bdc3c7; font-size: 12px; line-height: 1.6; margin-top: auto; }
         .drag-handle { cursor: grab; padding: 10px 20px; color: #ccc; font-size: 24px; position: absolute; right: 0; top: 0; bottom: 0; display: flex; align-items: center; z-index: 10; touch-action: none; }
@@ -155,17 +155,14 @@
     const GAS_URL = "https://script.google.com/macros/s/AKfycbwDiQBb8828NuND2vun5zdubnnEoLKxXxn11M4tnIeMFunITW5BWmn-ucd23AihcI_zFw/exec";
     let projects=[], currentProjectId=null, records=[], payers=[], payMethods=[], currencies=[], myChart=null;
 
-    // --- 修改後的雲端核心功能 ---
+    // --- 核心同步功能 ---
     function showOverlay(msg) {
         document.getElementById('sync-overlay').style.display = 'flex';
         document.getElementById('sync-status-text').innerText = msg;
     }
 
     function hideOverlay() {
-        // 延遲 800ms 關閉，讓使用者看清楚同步成功的提示
-        setTimeout(() => {
-            document.getElementById('sync-overlay').style.display = 'none';
-        }, 800);
+        setTimeout(() => { document.getElementById('sync-overlay').style.display = 'none'; }, 800);
     }
 
     async function syncCloud() {
@@ -177,11 +174,10 @@
             }
         }
         try {
-            // 背景同步不一定要鎖定畫面，但如果重要操作建議顯示
             await fetch(GAS_URL, { method: "POST", body: JSON.stringify(allData) });
-            console.log("雲端同步成功");
+            console.log("雲端上傳成功");
         } catch (e) {
-            console.error("雲端同步失敗", e);
+            console.error("雲端上傳失敗", e);
         }
     }
 
@@ -191,7 +187,6 @@
             const response = await fetch(GAS_URL);
             if (!response.ok) throw new Error("連線失敗");
             const cloudData = await response.json();
-
             if (cloudData && typeof cloudData === 'object' && Object.keys(cloudData).length > 0) {
                 Object.keys(cloudData).forEach(key => {
                     localStorage.setItem(key, JSON.stringify(cloudData[key]));
@@ -204,7 +199,6 @@
             return true;
         } catch (e) {
             document.getElementById('sync-status-text').innerText = "❌ 讀取失敗: " + e.message;
-            // 失敗時不自動隱藏，讓使用者知道目前是離線狀態
             setTimeout(hideOverlay, 2000);
             return false;
         }
@@ -216,50 +210,54 @@
         initYearSelector(); loadProjectList(); Chart.register(ChartDataLabels);
     };
 
-    // --- 其餘函式保持不變 ---
-    function saveAndRefresh() { localStorage.setItem(`records_${currentProjectId}`, JSON.stringify(records)); render(); syncCloud(); }
-    function saveSettingsAndSync() { localStorage.setItem(`payers_${currentProjectId}`, JSON.stringify(payers)); localStorage.setItem(`methods_${currentProjectId}`, JSON.stringify(payMethods)); localStorage.setItem(`currencies_${currentProjectId}`, JSON.stringify(currencies)); syncUI(); syncCloud(); }
-    function handleProjectSubmit() {
+    // --- 旅程管理 ---
+    async function handleProjectSubmit() {
         const id = document.getElementById('editProjId').value, n = document.getElementById('pName').value, s = document.getElementById('pStart').value, e = document.getElementById('pEnd').value;
         if(!n || !s || !e) return;
         if(id) { const p = projects.find(x => x.id == id); Object.assign(p, { name:n, start:s, end:e }); }
         else { projects.push({ id:Date.now(), name:n, start:s, end:e }); }
+        
         localStorage.setItem('trip_projects', JSON.stringify(projects)); 
-        closeModal('projectModal'); loadProjectList(); initYearSelector(); syncCloud();
+        closeModal('projectModal'); 
+        loadProjectList(); 
+        initYearSelector();
+        
+        showOverlay("🚀 正在儲存至雲端...");
+        await syncCloud(); // 確保同步完成
+        hideOverlay();
     }
-    function deleteProject(id) { if(!confirm('刪除旅程？')) return; projects = projects.filter(p => p.id !== id); localStorage.setItem('trip_projects', JSON.stringify(projects)); loadProjectList(); initYearSelector(); syncCloud(); }
-    function parseImportText() {
-        const text = document.getElementById('importInput').value; if (!text) return;
-        const currentYear = new Date().getFullYear();
-        let lastDate = new Date().toISOString().split('T')[0], importCount = 0;
-        const lines = text.split('\n').map(l => l.trim()).filter(l => l !== "");
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i], dateMatch = line.match(/^(\d{1,2})\/(\d{1,2})$/);
-            if (dateMatch) { lastDate = `${currentYear}-${dateMatch[1].padStart(2, '0')}-${dateMatch[2].padStart(2, '0')}`; continue; }
-            const itemMatch = line.match(/^(.+?)\s*\[(.+?)\]$/);
-            if (itemMatch && lines[i+1] && lines[i+2]) {
-                const itemName = itemMatch[1].trim(), category = itemMatch[2].trim(), amountLine = lines[++i], amountMatch = amountLine.match(/^([\d,]+)\s+([A-Z]{3})/), personLine = lines[++i], personMatch = personLine.match(/^(.+?)\s*\((.+?)\)$/);
-                if (amountMatch && personMatch) {
-                    const rawAmt = parseFloat(amountMatch[1].replace(/,/g, '')), currCode = amountMatch[2], person = personMatch[1].trim(), method = personMatch[2].trim();
-                    let rate = 1; const foundCurr = currencies.find(c => c.code === currCode);
-                    if (foundCurr) rate = foundCurr.rate;
-                    records.push({ id: Date.now() + Math.random(), date: lastDate, item: itemName, category: category, amount: rawAmt, currency: currCode, rate: rate, payer: person, method: method });
-                    if (!payers.includes(person)) payers.push(person); if (!payMethods.includes(method)) payMethods.push(method);
-                    importCount++;
-                }
-            }
-        }
-        if (importCount > 0) { alert(`成功匯入 ${importCount} 筆紀錄！`); saveSettingsAndSync(); saveAndRefresh(); closeModal('importModal'); document.getElementById('importInput').value = ''; } else { alert("解析失敗。"); }
+
+    async function deleteProject(id) { 
+        if(!confirm('刪除旅程？')) return; 
+        projects = projects.filter(p => p.id !== id); 
+        localStorage.setItem('trip_projects', JSON.stringify(projects)); 
+        loadProjectList(); 
+        initYearSelector(); 
+        showOverlay("🗑️ 正在更新雲端...");
+        await syncCloud();
+        hideOverlay();
     }
-    function initSortable() {
-        const listEl = document.getElementById('project-list'); if (!listEl) return;
-        if(window.sortableInstance) window.sortableInstance.destroy();
-        window.sortableInstance = Sortable.create(listEl, { handle: '.drag-handle', animation: 250, onEnd: function() {
-            const newIds = [...listEl.querySelectorAll('.card')].map(i => parseInt(i.getAttribute('data-id')));
-            projects = newIds.map(id => projects.find(p => p.id === id)).filter(p => p);
-            localStorage.setItem('trip_projects', JSON.stringify(projects)); syncCloud();
-        }});
+
+    // --- 明細管理 ---
+    function saveAndRefresh() { localStorage.setItem(`records_${currentProjectId}`, JSON.stringify(records)); render(); syncCloud(); }
+    
+    async function saveSettingsAndSync() { 
+        localStorage.setItem(`payers_${currentProjectId}`, JSON.stringify(payers)); 
+        localStorage.setItem(`methods_${currentProjectId}`, JSON.stringify(payMethods)); 
+        localStorage.setItem(`currencies_${currentProjectId}`, JSON.stringify(currencies)); 
+        syncUI(); 
+        await syncCloud(); 
     }
+
+    function addRecord(shouldShare) {
+        const amtInput = document.getElementById('amount'), itemInput = document.getElementById('itemName'), amt = parseFloat(amtInput.value);
+        if(!amt) return;
+        records.push({ id:Date.now(), date:document.getElementById('date').value, item:itemInput.value||"未命名", category:document.getElementById('category').value, amount:amt, currency:document.getElementById('currency').value, rate:parseFloat(document.getElementById('rate').value)||1, payer:document.getElementById('payerSelect').value, method:document.getElementById('payMethod').value });
+        saveAndRefresh(); amtInput.value = ''; itemInput.value = '';
+        if(shouldShare) { const txt = generateFullText(); window.location.href = `https://line.me/R/msg/text/?${encodeURIComponent(txt)}`; }
+    }
+
+    // --- 介面渲染與輔助功能 ---
     function loadProjectList() {
         const list = document.getElementById('project-list');
         list.innerHTML = projects.length ? '' : '<p style="text-align:center;color:#999;margin-top:20px;">尚未建立旅程</p>';
@@ -271,6 +269,7 @@
         });
         setTimeout(initSortable, 100);
     }
+
     function selectProject(id) {
         currentProjectId = id; const proj = projects.find(p => p.id === id); if(!proj) return;
         document.getElementById('current-project-name').innerText = proj.name;
@@ -281,31 +280,7 @@
         document.getElementById('project-screen').style.display='none'; document.getElementById('main-screen').style.display='block';
         syncUI(); render(); setDefaultDate();
     }
-    function setDefaultDate() { const today = new Date().toISOString().split('T')[0]; if(document.getElementById('date')) document.getElementById('date').value = today; }
-    function addRecord(shouldShare) {
-        const amtInput = document.getElementById('amount'), itemInput = document.getElementById('itemName'), amt = parseFloat(amtInput.value);
-        if(!amt) return;
-        records.push({ id:Date.now(), date:document.getElementById('date').value, item:itemInput.value||"未命名", category:document.getElementById('category').value, amount:amt, currency:document.getElementById('currency').value, rate:parseFloat(document.getElementById('rate').value)||1, payer:document.getElementById('payerSelect').value, method:document.getElementById('payMethod').value });
-        saveAndRefresh(); amtInput.value = ''; itemInput.value = '';
-        if(shouldShare) { const txt = generateFullText(); window.location.href = `https://line.me/R/msg/text/?${encodeURIComponent(txt)}`; }
-    }
-    function generateFullText() {
-        const proj = projects.find(p => p.id === currentProjectId); if (!proj) return "";
-        const sortedRecords = [...records].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
-        const groups = {}, dateOrder = [];
-        sortedRecords.forEach(r => { if (!groups[r.date]) { groups[r.date] = []; dateOrder.push(r.date); } groups[r.date].push(r); });
-        let text = `✈️ 【${proj.name}】旅遊帳單\n--------------------------\n`, grandTotal = 0;
-        dateOrder.forEach(fullDate => {
-            const displayDate = fullDate.substring(5).replace('-', '/'); text += `${displayDate}\n`; let dayTotal = 0;
-            groups[fullDate].forEach(r => {
-                const twd = Math.round(r.amount * r.rate); dayTotal += twd;
-                text += `${r.item} [${r.category}]\n${r.amount.toLocaleString()} ${r.currency}${r.currency !== 'TWD' ? ' (約NT$' + twd.toLocaleString() + ')' : ''}\n${r.payer} (${r.method})\n\n`;
-            });
-            text += `📊 本日總計：NT$ ${dayTotal.toLocaleString()}\n--------------------------\n`; grandTotal += dayTotal;
-        });
-        text += `💰 旅程總支出：NT$ ${grandTotal.toLocaleString()}`; return text;
-    }
-    function prepareShareModal() { const txt = generateFullText(); window.lastShareText = txt; document.getElementById('lineShareLink').href = `https://line.me/R/msg/text/?${encodeURIComponent(txt)}`; openModal('shareSelectModal'); }
+
     function render() {
         const tbody = document.getElementById('recordTableBody'); tbody.innerHTML = ''; let total = 0, stats = {};
         records.sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id).forEach(r => {
@@ -316,6 +291,7 @@
         });
         document.getElementById('totalDisplay').innerText = `NT$ ${total.toLocaleString()}`; updateChart(stats);
     }
+
     function syncUI() {
         document.getElementById('payerSelect').innerHTML = payers.map(p => `<option value="${p}">${p}</option>`).join('');
         document.getElementById('payMethod').innerHTML = payMethods.map(m => `<option value="${m}">${m}</option>`).join('');
@@ -325,6 +301,8 @@
         document.getElementById('listCurr').innerHTML = currencies.map((c, i) => `<div class="mgmt-chip"><span>${c.code}: ${c.rate}</span><span style="margin-left:auto;color:red;cursor:pointer;" onclick="manageDelete('currencies',${i})">🗑️</span></div>`).join('');
         applyCurrencyRate('rate', 'currency');
     }
+
+    // 其他原本功能 (智慧匯入, 分享, 排序等) 均保持完整...
     function backToProjectList() { document.getElementById('main-screen').style.display='none'; document.getElementById('project-screen').style.display='block'; loadProjectList(); initYearSelector(); }
     function openModal(id) { document.getElementById(id).style.display='block'; }
     function closeModal(id) { document.getElementById(id).style.display='none'; }
@@ -342,6 +320,7 @@
     }
     function openNewProjectModal() { document.getElementById('pModalTitle').innerText="新旅程"; document.getElementById('editProjId').value=""; document.getElementById('pName').value=""; document.getElementById('pStart').value=""; document.getElementById('pEnd').value=""; openModal('projectModal'); }
     function openEditProject(id) { const p = projects.find(x => x.id === id); if(!p) return; document.getElementById('pModalTitle').innerText="修改旅程"; document.getElementById('editProjId').value=p.id; document.getElementById('pName').value=p.name; document.getElementById('pStart').value=p.start; document.getElementById('pEnd').value=p.end; openModal('projectModal'); }
+    function setDefaultDate() { const today = new Date().toISOString().split('T')[0]; if(document.getElementById('date')) document.getElementById('date').value = today; }
     function openEdit(id) { 
         const r = records.find(x => x.id == id); if (!r) return; 
         document.getElementById('eCurrency').innerHTML = currencies.map(c => `<option value="${c.code}">${c.code}</option>`).join('');
@@ -367,6 +346,55 @@
         myChart = new Chart(ctx, { type:'doughnut', data:{ labels:Object.keys(dataMap), datasets:[{data:Object.values(dataMap), backgroundColor:['#3498db','#e74c3c','#2ecc71','#f1c40f','#9b59b6','#1abc9c']}]}, options:{ plugins:{ datalabels:{color:'#fff', font:{weight:'bold'}, formatter:(v,c)=>{let s=0; c.chart.data.datasets[0].data.map(d=>s+=d); return (v*100/s).toFixed(0)+"%";} } } } });
     }
     function copyToClipboard() { navigator.clipboard.writeText(window.lastShareText).then(() => { alert("已複製！"); closeModal('shareSelectModal'); }); }
+    function initSortable() {
+        const listEl = document.getElementById('project-list'); if (!listEl) return;
+        if(window.sortableInstance) window.sortableInstance.destroy();
+        window.sortableInstance = Sortable.create(listEl, { handle: '.drag-handle', animation: 250, onEnd: function() {
+            const newIds = [...listEl.querySelectorAll('.card')].map(i => parseInt(i.getAttribute('data-id')));
+            projects = newIds.map(id => projects.find(p => p.id === id)).filter(p => p);
+            localStorage.setItem('trip_projects', JSON.stringify(projects)); syncCloud();
+        }});
+    }
+    function generateFullText() {
+        const proj = projects.find(p => p.id === currentProjectId); if (!proj) return "";
+        const sortedRecords = [...records].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
+        const groups = {}, dateOrder = [];
+        sortedRecords.forEach(r => { if (!groups[r.date]) { groups[r.date] = []; dateOrder.push(r.date); } groups[r.date].push(r); });
+        let text = `✈️ 【${proj.name}】旅遊帳單\n--------------------------\n`, grandTotal = 0;
+        dateOrder.forEach(fullDate => {
+            const displayDate = fullDate.substring(5).replace('-', '/'); text += `${displayDate}\n`; let dayTotal = 0;
+            groups[fullDate].forEach(r => {
+                const twd = Math.round(r.amount * r.rate); dayTotal += twd;
+                text += `${r.item} [${r.category}]\n${r.amount.toLocaleString()} ${r.currency}${r.currency !== 'TWD' ? ' (約NT$' + twd.toLocaleString() + ')' : ''}\n${r.payer} (${r.method})\n\n`;
+            });
+            text += `📊 本日總計：NT$ ${dayTotal.toLocaleString()}\n--------------------------\n`; grandTotal += dayTotal;
+        });
+        text += `💰 旅程總支出：NT$ ${grandTotal.toLocaleString()}`; return text;
+    }
+    function prepareShareModal() { const txt = generateFullText(); window.lastShareText = txt; document.getElementById('lineShareLink').href = `https://line.me/R/msg/text/?${encodeURIComponent(txt)}`; openModal('shareSelectModal'); }
+    function parseImportText() {
+        const text = document.getElementById('importInput').value; if (!text) return;
+        const currentYear = new Date().getFullYear();
+        let lastDate = new Date().toISOString().split('T')[0], importCount = 0;
+        const lines = text.split('\n').map(l => l.trim()).filter(l => l !== "");
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i], dateMatch = line.match(/^(\d{1,2})\/(\d{1,2})$/);
+            if (dateMatch) { lastDate = `${currentYear}-${dateMatch[1].padStart(2, '0')}-${dateMatch[2].padStart(2, '0')}`; continue; }
+            const itemMatch = line.match(/^(.+?)\s*\[(.+?)\]$/);
+            if (itemMatch && lines[i+1] && lines[i+2]) {
+                const itemName = itemMatch[1].trim(), category = itemMatch[2].trim(), amountLine = lines[++i], amountMatch = amountLine.match(/^([\d,]+)\s+([A-Z]{3})/), personLine = lines[++i], personMatch = personLine.match(/^(.+?)\s*\((.+?)\)$/);
+                if (amountMatch && personMatch) {
+                    const rawAmt = parseFloat(amountMatch[1].replace(/,/g, '')), currCode = amountMatch[2], person = personMatch[1].trim(), method = personMatch[2].trim();
+                    let rate = 1; const foundCurr = currencies.find(c => c.code === currCode);
+                    if (foundCurr) rate = foundCurr.rate;
+                    records.push({ id: Date.now() + Math.random(), date: lastDate, item: itemName, category: category, amount: rawAmt, currency: currCode, rate: rate, payer: person, method: method });
+                    if (!payers.includes(person)) payers.push(person); if (!payMethods.includes(method)) payMethods.push(method);
+                    importCount++;
+                }
+            }
+        }
+        if (importCount > 0) { alert(`成功匯入 ${importCount} 筆紀錄！`); saveSettingsAndSync(); saveAndRefresh(); closeModal('importModal'); document.getElementById('importInput').value = ''; } else { alert("解析失敗。"); }
+    }
 </script>
 
 </body>
