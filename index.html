@@ -152,7 +152,7 @@
 <div id="editModal" class="modal"><div class="modal-content"><h3>✏️ 編輯明細</h3><input type="hidden" id="editId"><div style="text-align:left; margin-bottom:15px;"><label>品項名稱</label><input type="text" id="eItem"></div><div class="form-grid"><div><label>日期</label><input type="date" id="eDate"></div><div><label>分類</label><select id="eCategory"><option value="飲食">🍕 飲食</option><option value="購物">🛍️ 購物</option><option value="交通">🚗 交通</option><option value="住宿">🏨 住宿</option><option value="娛樂">🎟️ 娛樂</option><option value="其他">📦 其他</option></select></div><div><label>金額 (原幣數值)</label><input type="number" id="eAmount"></div><div><label>幣別</label><select id="eCurrency" onchange="applyCurrencyRate('eRate', 'eCurrency')"></select></div><div><label>匯率</label><input type="number" id="eRate" step="0.0001"></div><div><label>方式</label><select id="ePayMethod"></select></div><div style="grid-column: span 2;"><label>支付者</label><select id="ePayer"></select></div></div><div style="display:flex; gap:10px; margin-top:15px;"><button class="btn-add-only" onclick="saveEdit()">儲存</button><button class="btn-add-only" onclick="closeModal('editModal')" style="background:#eee; color:#666;">取消</button></div></div></div>
 
 <script>
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwDiQBb8828NuND2vun5zdubnnEoLKxXxn11M4tnIeMFunITW5BWmn-ucd23AihcI_zFw/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwlpNw_xFIS4c5zc11f9ITs0ujDTuoTa92fIZMiVmCEkcPay3gC4V9yhxWZJHSnYdpg8Q/exec";
     let projects=[], currentProjectId=null, records=[], payers=[], payMethods=[], currencies=[], myChart=null;
 
     // --- 核心同步功能 ---
@@ -165,21 +165,32 @@
         setTimeout(() => { document.getElementById('sync-overlay').style.display = 'none'; }, 800);
     }
 
-    async function syncCloud() {
-        const allData = {};
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key.startsWith('trip_') || key.startsWith('records_') || key.startsWith('payers_') || key.startsWith('methods_') || key.startsWith('currencies_')) {
-                allData[key] = JSON.parse(localStorage.getItem(key));
-            }
-        }
-        try {
-            await fetch(GAS_URL, { method: "POST", body: JSON.stringify(allData) });
-            console.log("雲端上傳成功");
-        } catch (e) {
-            console.error("雲端上傳失敗", e);
-        }
-    }
+async function syncCloud() {
+ const allData = {};
+ for (let i = 0; i < localStorage.length; i++) {
+ const key = localStorage.key(i);
+ // 確保儲存所有必要的欄位
+if (key.startsWith('trip_') || key.startsWith('records_') || key.startsWith('payers_') || key.startsWith('methods_') || key.startsWith('currencies_')) {
+ allData[key] = JSON.parse(localStorage.getItem(key));
+ }
+ }
+ try {
+ const response = await fetch(GAS_URL, { 
+ method: "POST", 
+ body: JSON.stringify(allData) 
+ });
+ const result = await response.text();
+ if (result === "Success") {
+ console.log("雲端上傳成功");
+ } else {
+ console.error("雲端回傳錯誤:", result);
+ alert("雲端儲存失敗：" + result);
+ }
+ } catch (e) {
+ console.error("網路連線失敗", e);
+ alert("網路連線失敗，請檢查網路狀態");
+ }
+}
 
     async function loadCloud() {
         showOverlay("☁️ 正在與雲端同步資料...");
